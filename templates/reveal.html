@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="section">
+    <h2>Hora de acusar</h2>
+    <p class="hint">Despues de votar, revelen la verdad y hagan drama.</p>
+    <div class="grid">
+      <div class="panel">
+        <h3>Palabras</h3>
+        <p class="hint">Palabra real: <strong>{{ real_word }}</strong></p>
+        <p class="hint">Palabra del impostor: <strong>{{ impostor_word }}</strong></p>
+      </div>
+      <div class="panel">
+        <h3>Impostor</h3>
+        <p class="hint">El impostor era: <strong>{{ impostor.name if impostor else '???' }}</strong></p>
+        <p class="hint">Si adivina la palabra real, se salva.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="ghost" href="{{ url_for('room', code=room.code) }}">Volver a la sala</a>
+      <form method="post" action="{{ url_for('reset_round', code=room.code) }}">
+        <button class="primary" type="submit">Nueva ronda</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

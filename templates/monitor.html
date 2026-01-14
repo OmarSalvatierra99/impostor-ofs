@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="section monitor">
+    <div class="room-header">
+      <div>
+        <p class="turn">Sala {{ room.code }}</p>
+        <h2>Monitor</h2>
+      </div>
+    </div>
+
+    {% if notice %}
+      <div class="alert">{{ notice }}</div>
+    {% endif %}
+
+    <div class="qr-row">
+      <div>
+        <p class="hint">Escanea para entrar</p>
+        <img class="qr" src="{{ url_for('room_qr', code=room.code) }}" alt="QR de sala">
+      </div>
+    </div>
+
+    {% if room.phase == "lobby" %}
+      <div class="panel">
+        <p class="hint">Esperando jugadores para iniciar.</p>
+        <form method="post" action="{{ url_for('start_game', code=room.code) }}">
+          <button class="primary" type="submit">Iniciar juego</button>
+        </form>
+      </div>
+    {% endif %}
+
+    {% if room.phase != "lobby" %}
+      <div class="mosaic">
+        <div class="mosaic-card">
+          <div class="mosaic-header">
+            <img src="{{ url_for('static', filename=category_data.image) }}" alt="{{ category_name }}">
+            <h3>{{ category_name }}</h3>
+          </div>
+          <p class="hint">Categoria activa para esta ronda.</p>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if room.phase == "collect" %}
+      <div class="panel">
+        <p class="hint">Palabras recibidas: {{ submissions_count }}/{{ room.players|length }}</p>
+      </div>
+    {% elif room.phase == "voting" %}
+      <div class="panel">
+        <p class="hint">Votos recibidos: {{ votes_count }}/{{ room.players|length }}</p>
+      </div>
+    {% elif room.phase == "results" %}
+      <div class="panel">
+        <h3>Impostor elegido</h3>
+        <p class="hint">{{ impostor.name if impostor else 'Sin votos' }}</p>
+      </div>
+      {% if leaderboard %}
+        <div class="panel">
+          <h3>Resultados de votos</h3>
+          <div class="vote-results">
+            {% for row in leaderboard %}
+              <div class="vote-row">
+                <span>{{ row.name }}</span>
+                <span class="pill">{{ row.votes }} votos</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="players">
+      {% if room.players %}
+        {% for person in room.players %}
+          <div class="player-card">
+            <div class="avatar">
+              <span>{{ person.name[:1] }}</span>
+            </div>
+            <div class="player-info">
+              <p class="player-name">{{ person.name }}</p>
+              {% if room.phase == "lobby" %}
+                <p class="player-word hint">En sala</p>
+              {% elif room.submissions.get(person.id) %}
+                <p class="player-word">{{ person.name }} - {{ room.submissions[person.id] }}</p>
+              {% else %}
+                <p class="player-word hint">Sin palabra</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="hint">No hay jugadores conectados.</p>
+      {% endif %}
+    </div>
+  </section>
+  <script>
+    const roomState = {
+      phase: "{{ room.phase }}",
+      playersCount: {{ room.players|length }},
+      submissionsCount: {{ submissions_count }},
+      votesCount: {{ votes_count }},
+    };
+    const stateUrl = "{{ url_for('room_state', code=room.code) }}";
+    setInterval(async () => {
+      try {
+        const response = await fetch(stateUrl, { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        const changed =
+          data.phase !== roomState.phase ||
+          data.players_count !== roomState.playersCount ||
+          data.submissions_count !== roomState.submissionsCount ||
+          data.votes_count !== roomState.votesCount;
+        if (changed) {
+          window.location.reload();
+        }
+      } catch (error) {
+        // Ignore transient network errors.
+      }
+    }, 1500);
+  </script>
+{% endblock %}

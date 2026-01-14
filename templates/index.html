@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="section">
+    <h2>Monitor principal</h2>
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <div class="actions">
+      <form method="post" action="{{ url_for('create_room') }}">
+        <button class="primary" type="submit">Abrir monitor</button>
+      </form>
+      <form method="post" action="{{ url_for('join') }}" class="join">
+        <label>
+          Codigo de sala
+          <input name="code" placeholder="ABCD" maxlength="6" autocomplete="off">
+        </label>
+        <button class="ghost" type="submit">Entrar</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

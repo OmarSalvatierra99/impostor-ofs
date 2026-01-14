@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="section">
+    <div class="room-header">
+      <div>
+        <p class="turn">Sala {{ room.code }}</p>
+        <h2>Monitor bloqueado</h2>
+      </div>
+    </div>
+    <div class="panel">
+      <p class="hint">El monitor solo esta disponible en una pantalla grande.</p>
+      <p class="hint">Abre esta pagina en una laptop o PC para ver las palabras.</p>
+    </div>
+    <div class="actions">
+      <a class="ghost" href="{{ url_for('room', code=room.code) }}">Volver a la sala</a>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+{% block content %}
+  <section class="section">
+    <div class="room-header">
+      <div>
+        <p class="turn">Sala {{ room.code }}</p>
+        <h2>Jugador</h2>
+      </div>
+    </div>
+
+    {% if notice %}
+      <div class="alert">{{ notice }}</div>
+    {% endif %}
+
+    <div class="panel">
+      <p class="hint">Pantalla principal</p>
+      <p class="hint">El monitor solo se ve en una pantalla grande.</p>
+    </div>
+
+    <div class="panel">
+      <p class="hint">Jugadores en sala</p>
+      {% if room.players %}
+        <div class="chips">
+          {% for person in room.players %}
+            <span class="pill">{{ person.name }}</span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="hint">Todavia no hay jugadores conectados.</p>
+      {% endif %}
+    </div>
+
+    {% if not player %}
+      {% if room.phase != "lobby" %}
+        <div class="panel">
+          <p class="hint">La partida ya empezó. Espera a la siguiente ronda.</p>
+        </div>
+      {% endif %}
+      <form method="post" class="form join-form">
+        <label>
+          Tu nombre
+          <input name="name" placeholder="Sol, Nico, Meli" autocomplete="off">
+        </label>
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+    {% else %}
+      {% if room.phase == "lobby" %}
+        <div class="panel">
+          <p class="hint">Esperando que el monitor inicie la partida.</p>
+        </div>
+      {% elif room.phase == "collect" %}
+        <div class="panel">
+          <p class="hint">Categoria: {{ room.category_name }}</p>
+          <div class="secret">
+            {% if is_impostor %}
+              <p class="tag danger">Eres el impostor</p>
+              <p class="word">No tienes palabra</p>
+              <p class="sub">Improvisa y trata de adivinar la palabra real.</p>
+            {% else %}
+              <p class="tag">Palabra secreta</p>
+              <p class="word">{{ secret_word }}</p>
+              <p class="sub">Describe sin decirla. Usa creatividad.</p>
+            {% endif %}
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('submit_word', code=room.code) }}" class="form">
+          <label>
+            Tu palabra para el monitor
+            <input name="word" placeholder="Escribe tu palabra">
+          </label>
+          <button class="primary" type="submit">Enviar palabra</button>
+        </form>
+        {% if submission %}
+          <p class="hint">Tu palabra enviada: {{ submission }}</p>
+        {% endif %}
+      {% elif room.phase == "voting" %}
+        <div class="panel">
+          <p class="hint">Todos enviaron palabra. Hora de votar.</p>
+        </div>
+        {% if has_voted %}
+          <p class="hint">Voto enviado. Espera el resultado.</p>
+        {% else %}
+          <form method="post" action="{{ url_for('vote', code=room.code) }}" class="form">
+            <div class="vote-list">
+              {% for person in room.players %}
+                <label class="vote-option">
+                  <input type="radio" name="vote" value="{{ person.id }}" required>
+                  <span>{{ person.name }}</span>
+                </label>
+              {% endfor %}
+            </div>
+            <button class="primary" type="submit">Enviar voto</button>
+          </form>
+        {% endif %}
+      {% elif room.phase == "results" %}
+        <div class="panel">
+          <p class="hint">Votacion cerrada. Revisa el monitor para el resultado.</p>
+        </div>
+      {% endif %}
+    {% endif %}
+  </section>
+  <script>
+    const roomState = {
+      phase: "{{ room.phase }}",
+      playersCount: {{ room.players|length }},
+      submissionsCount: {{ submissions_count }},
+      votesCount: {{ votes_count }},
+    };
+    const stateUrl = "{{ url_for('room_state', code=room.code) }}";
+    setInterval(async () => {
+      try {
+        const response = await fetch(stateUrl, { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        const changed =
+          data.phase !== roomState.phase ||
+          data.players_count !== roomState.playersCount ||
+          data.submissions_count !== roomState.submissionsCount ||
+          data.votes_count !== roomState.votesCount;
+        if (changed) {
+          window.location.reload();
+        }
+      } catch (error) {
+        // Ignore transient network errors.
+      }
+    }, 2000);
+  </script>
+{% endblock %}
