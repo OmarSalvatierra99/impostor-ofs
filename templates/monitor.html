@@ -1,10 +1,24 @@
 {% extends "layout.html" %}
+{% set main_class = "monitor-card" %}
 {% block content %}
+  {% if room.phase == "lobby" %}
+    {% set phase_label = "Lobby" %}
+  {% elif room.phase == "collect" %}
+    {% set phase_label = "Palabras" %}
+  {% elif room.phase == "voting" %}
+    {% set phase_label = "Votacion" %}
+  {% else %}
+    {% set phase_label = "Resultados" %}
+  {% endif %}
   <section class="section monitor">
     <div class="room-header">
       <div>
         <p class="turn">Sala {{ room.code }}</p>
         <h2>Monitor</h2>
+      </div>
+      <div class="room-meta">
+        <span class="pill">Jugadores {{ room.players|length }}</span>
+        <span class="pill">Fase {{ phase_label }}</span>
       </div>
     </div>
 
@@ -12,30 +26,65 @@
       <div class="alert">{{ notice }}</div>
     {% endif %}
 
-    <div class="qr-row">
-      <div>
-        <p class="hint">Escanea para entrar</p>
-        <img class="qr" src="{{ url_for('room_qr', code=room.code) }}" alt="QR de sala">
-      </div>
-    </div>
+    <div class="monitor-grid monitor-top">
+      {% if room.phase == "lobby" %}
+        <div class="monitor-tile qr-tile">
+          <p class="hint">Escanea para entrar</p>
+          <img class="qr" src="{{ url_for('room_qr', code=room.code) }}" alt="QR de sala">
+          <p class="pill">Sala {{ room.code }}</p>
+        </div>
+      {% endif %}
 
-    {% if room.phase == "lobby" %}
-      <div class="panel">
-        <p class="hint">Esperando jugadores para iniciar.</p>
-        <form method="post" action="{{ url_for('start_game', code=room.code) }}">
-          <button class="primary" type="submit">Iniciar juego</button>
-        </form>
+      <div class="monitor-tile round-tile">
+        {% if room.phase == "lobby" %}
+          <h3 class="tile-title">Listos para arrancar</h3>
+          <p class="hint">Cuando esten listos, inicia el juego desde aqui.</p>
+          <form method="post" action="{{ url_for('start_game', code=room.code) }}">
+            <button class="primary" type="submit">Iniciar juego</button>
+          </form>
+        {% else %}
+          <h3 class="tile-title round-indicator">Ronda en curso</h3>
+          <p class="hint">Mantene el monitor visible para el grupo.</p>
+          <div class="stat-row">
+            {% if room.phase == "collect" %}
+              <span class="pill secondary">Palabras {{ submissions_count }}/{{ room.players|length }}</span>
+            {% elif room.phase == "voting" %}
+              <span class="pill secondary">Votos {{ votes_count }}/{{ room.players|length }}</span>
+            {% else %}
+              <span class="pill secondary">Resultados listos</span>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
-    {% endif %}
 
-    {% if room.phase != "lobby" %}
-      <div class="mosaic">
-        <div class="mosaic-card">
-          <div class="mosaic-header">
+      {% if room.phase != "lobby" %}
+        <div class="monitor-tile category-tile side-tile">
+          <div class="tile-header">
             <img src="{{ url_for('static', filename=category_data.image) }}" alt="{{ category_name }}">
-            <h3>{{ category_name }}</h3>
+            <div>
+              <p class="turn">Categoria</p>
+              <h3 class="tile-title">{{ category_name }}</h3>
+            </div>
           </div>
           <p class="hint">Categoria activa para esta ronda.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if room.phase != "lobby" %}
+      <div class="monitor-grid monitor-wide">
+        <div class="monitor-tile word-bank">
+          <p class="turn category-active">{{ category_name }} / Categoria activa para esta ronda</p>
+          <div class="tile-header">
+            <div>
+              <h3 class="tile-title">Banco de palabras</h3>
+            </div>
+          </div>
+          <div class="word-wall-grid">
+            {% for word in category_data.words[:10] %}
+              <span>{{ word }}</span>
+            {% endfor %}
+          </div>
         </div>
       </div>
     {% endif %}
@@ -49,9 +98,11 @@
         <p class="hint">Votos recibidos: {{ votes_count }}/{{ room.players|length }}</p>
       </div>
     {% elif room.phase == "results" %}
-      <div class="panel">
-        <h3>Impostor elegido</h3>
-        <p class="hint">{{ impostor.name if impostor else 'Sin votos' }}</p>
+      <div class="panel impostor-reveal">
+        <p class="turn">Revelacion</p>
+        <h3>El impostor era...</h3>
+        <p class="impostor-name">{{ impostor.name if impostor else 'Sin votos' }}</p>
+        <p class="hint">Momento de drama y teorias.</p>
       </div>
       {% if leaderboard %}
         <div class="panel">
@@ -66,6 +117,11 @@
           </div>
         </div>
       {% endif %}
+      <div class="actions">
+        <form method="post" action="{{ url_for('reset_round', code=room.code) }}">
+          <button class="primary" type="submit">Reiniciar partida</button>
+        </form>
+      </div>
     {% endif %}
 
     <div class="players">

@@ -1,21 +1,53 @@
 {% extends "layout.html" %}
+{% set main_class = "landing-card" %}
+{% block header %}
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">
+      <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo institucional">
+      <span>Inspector en el Ofs</span>
+    </a>
+    <span class="topbar-hint">Plataforma interna</span>
+  </header>
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <span class="badge">Experiencia institucional</span>
+        <h1>Inspector en el OFS</h1>
+        <p class="subtitle">Gestiona sesiones de equipo con monitor, QR y resultados en tiempo real.</p>
+      </div>
+    </div>
+  </section>
+{% endblock %}
 {% block content %}
-  <section class="section">
-    <h2>Monitor principal</h2>
+  <section class="section round-setup">
     {% if error %}
       <div class="alert">{{ error }}</div>
     {% endif %}
-    <div class="actions">
-      <form method="post" action="{{ url_for('create_room') }}">
-        <button class="primary" type="submit">Abrir monitor</button>
-      </form>
-      <form method="post" action="{{ url_for('join') }}" class="join">
-        <label>
-          Codigo de sala
-          <input name="code" placeholder="ABCD" maxlength="6" autocomplete="off">
-        </label>
-        <button class="ghost" type="submit">Entrar</button>
-      </form>
+    <div class="section-head">
+      <div>
+        <h2>Organiza la ronda</h2>
+        <p class="hint">Abre el monitor en una pantalla grande y comparte el codigo.</p>
+      </div>
+    </div>
+    <div class="action-grid">
+      <div class="action-card">
+        <h3>Crear monitor</h3>
+        <p class="hint">Ideal para laptop o PC. Muestra QR, categoria y resultados.</p>
+        <form method="post" action="{{ url_for('create_room') }}">
+          <button class="primary" type="submit">Abrir monitor</button>
+        </form>
+      </div>
+      <div class="action-card">
+        <h3>Entrar a sala</h3>
+        <p class="hint">Ingresa el codigo de 4 a 6 letras.</p>
+        <form method="post" action="{{ url_for('join') }}" class="join">
+          <label>
+            Codigo de sala
+            <input name="code" placeholder="ABCD" maxlength="6" autocomplete="off">
+          </label>
+          <button class="ghost" type="submit">Entrar</button>
+        </form>
+      </div>
     </div>
   </section>
 {% endblock %}

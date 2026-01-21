@@ -1,24 +1,47 @@
 {% extends "layout.html" %}
+{% set main_class = "room-card" %}
 {% block content %}
+  {% if room.phase == "lobby" %}
+    {% set phase_label = "Lobby" %}
+  {% elif room.phase == "collect" %}
+    {% set phase_label = "Palabras" %}
+  {% elif room.phase == "voting" %}
+    {% set phase_label = "Votacion" %}
+  {% else %}
+    {% set phase_label = "Resultados" %}
+  {% endif %}
   <section class="section">
     <div class="room-header">
       <div>
         <p class="turn">Sala {{ room.code }}</p>
         <h2>Jugador</h2>
       </div>
+      <div class="room-meta">
+        <span class="pill">Jugadores {{ room.players|length }}</span>
+        <span class="pill">Fase {{ phase_label }}</span>
+      </div>
+    </div>
+
+    <div class="info-banner">
+      <span>Monitor: abre la sala en una pantalla grande para ver palabras.</span>
     </div>
 
     {% if notice %}
       <div class="alert">{{ notice }}</div>
     {% endif %}
 
-    <div class="panel">
-      <p class="hint">Pantalla principal</p>
-      <p class="hint">El monitor solo se ve en una pantalla grande.</p>
+    <div class="phase-steps">
+      <span class="step-chip {% if room.phase == 'lobby' %}active{% endif %}">Sala</span>
+      <span class="step-chip {% if room.phase == 'collect' %}active{% endif %}">Palabras</span>
+      <span class="step-chip {% if room.phase == 'voting' %}active{% endif %}">Votacion</span>
+      <span class="step-chip {% if room.phase == 'results' %}active{% endif %}">Resultados</span>
     </div>
 
     <div class="panel">
-      <p class="hint">Jugadores en sala</p>
+      <div class="panel-head">
+        <h3>Jugadores</h3>
+        <p class="hint">{{ room.players|length }} conectados</p>
+      </div>
       {% if room.players %}
         <div class="chips">
           {% for person in room.players %}
@@ -31,25 +54,25 @@
     </div>
 
     {% if not player %}
-      {% if room.phase != "lobby" %}
-        <div class="panel">
-          <p class="hint">La partida ya empezó. Espera a la siguiente ronda.</p>
-        </div>
-      {% endif %}
-      <form method="post" class="form join-form">
-        <label>
-          Tu nombre
-          <input name="name" placeholder="Sol, Nico, Meli" autocomplete="off">
-        </label>
-        <button class="primary" type="submit">Entrar</button>
-      </form>
+      <div class="panel">
+        {% if room.phase != "lobby" %}
+          <p class="hint">La partida ya empezo. Espera la siguiente ronda.</p>
+        {% endif %}
+        <form method="post" class="form join-form">
+          <label>
+            Tu nombre
+            <input name="name" placeholder="Sol, Nico, Meli" autocomplete="off">
+          </label>
+          <button class="primary" type="submit">Entrar</button>
+        </form>
+      </div>
     {% else %}
       {% if room.phase == "lobby" %}
         <div class="panel">
           <p class="hint">Esperando que el monitor inicie la partida.</p>
         </div>
       {% elif room.phase == "collect" %}
-        <div class="panel">
+        <div class="panel highlight">
           <p class="hint">Categoria: {{ room.category_name }}</p>
           <div class="secret">
             {% if is_impostor %}
@@ -62,19 +85,19 @@
               <p class="sub">Describe sin decirla. Usa creatividad.</p>
             {% endif %}
           </div>
+          <form method="post" action="{{ url_for('submit_word', code=room.code) }}" class="form">
+            <label>
+              Tu palabra para el monitor
+              <input name="word" placeholder="Escribe tu palabra">
+            </label>
+            <button class="primary" type="submit">Enviar palabra</button>
+          </form>
+          {% if submission %}
+            <p class="hint">Tu palabra enviada: {{ submission }}</p>
+          {% endif %}
         </div>
-        <form method="post" action="{{ url_for('submit_word', code=room.code) }}" class="form">
-          <label>
-            Tu palabra para el monitor
-            <input name="word" placeholder="Escribe tu palabra">
-          </label>
-          <button class="primary" type="submit">Enviar palabra</button>
-        </form>
-        {% if submission %}
-          <p class="hint">Tu palabra enviada: {{ submission }}</p>
-        {% endif %}
       {% elif room.phase == "voting" %}
-        <div class="panel">
+        <div class="panel highlight">
           <p class="hint">Todos enviaron palabra. Hora de votar.</p>
         </div>
         {% if has_voted %}

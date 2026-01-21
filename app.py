@@ -19,61 +19,61 @@ CATEGORIES = {
     "Oficina": {
         "image": "images/oficina.svg",
         "words": [
-            "reunion",
+            "mesa",
             "silla",
-            "cafetera",
-            "teclado",
-            "impresora",
-            "correo",
-            "agenda",
-            "elevador",
-            "estacionamiento",
-            "licencia",
-            "cubiculo",
-            "badge",
-            "vacaciones",
-            "reporte",
-            "llamada",
+            "lapiz",
+            "libro",
+            "taza",
+            "reloj",
+            "puerta",
+            "ventana",
+            "caja",
+            "bolsa",
+            "llave",
+            "vaso",
+            "cama",
+            "espejo",
+            "lampara",
         ],
     },
-    "Proyecto": {
+    "Trabajo": {
         "image": "images/proyecto.svg",
         "words": [
-            "brief",
-            "wireframe",
-            "entrega",
-            "sprint",
-            "feedback",
-            "demo",
-            "roadmap",
-            "scope",
-            "benchmark",
-            "prioridad",
-            "backlog",
-            "presentacion",
-            "calidad",
-            "riesgo",
-            "presupuesto",
+            "correo",
+            "tarea",
+            "nota",
+            "agenda",
+            "equipo",
+            "reunion",
+            "oficina",
+            "telefono",
+            "pantalla",
+            "archivo",
+            "firma",
+            "reporte",
+            "plan",
+            "jefe",
+            "cafe",
         ],
     },
-    "Convivio": {
+    "Fiesta": {
         "image": "images/convivio.svg",
         "words": [
-            "brindis",
-            "karaoke",
             "pizza",
-            "premio",
-            "selfie",
-            "playlist",
-            "regalo",
-            "decoracion",
             "pastel",
-            "confeti",
-            "sorteo",
-            "foto",
+            "globo",
+            "musica",
+            "regalo",
+            "vela",
             "risa",
             "baile",
-            "despedida",
+            "foto",
+            "juego",
+            "amigos",
+            "fiesta",
+            "confeti",
+            "brindis",
+            "mesa",
         ],
     },
 }
@@ -309,6 +309,24 @@ def room_state(code: str):
             "votes_count": len(room_state["votes"]),
         }
     )
+
+
+@app.route("/room/<code>/reset", methods=["POST"])
+def reset_round(code: str):
+    room_state = _ensure_room(code)
+    if not room_state:
+        return redirect(url_for("index"))
+
+    category_name, category_data = _pick_category()
+    room_state["category_name"] = category_name
+    room_state["category_data"] = category_data
+    room_state["phase"] = "lobby"
+    room_state["submissions"] = {}
+    room_state["votes"] = {}
+    room_state["real_word"] = None
+    room_state["impostor_id"] = None
+    room_state["notice"] = "Nueva ronda lista. Puedes iniciar de nuevo."
+    return redirect(url_for("monitor", code=room_state["code"]))
 
 
 @app.route("/room/<code>/qr", methods=["GET"])
