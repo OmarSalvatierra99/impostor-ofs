@@ -642,7 +642,7 @@ textarea {
 
 .word-wall-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -825,6 +825,19 @@ textarea {
     flex-direction: column;
     align-items: flex-start;
   }
+  .monitor-wide {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .word-bank {
+    padding: 24px;
+  }
+  .word-bank .tile-title {
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
+  }
+  .word-wall-grid span {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -834,5 +847,21 @@ textarea {
   .primary,
   .ghost {
     width: 100%;
+  }
+  .word-bank {
+    padding: 18px;
+  }
+  .category-active {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+  }
+  .word-wall-grid {
+    gap: 10px;
+  }
+  .word-wall-grid span {
+    font-size: 13px;
+    padding: 10px;
+    letter-spacing: 0.03em;
+    word-break: break-word;
   }
 }

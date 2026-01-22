@@ -22,13 +22,45 @@
       </div>
     </div>
 
-    <div class="info-banner">
-      <span>Monitor: abre la sala en una pantalla grande para ver palabras.</span>
-    </div>
-
     {% if notice %}
       <div class="alert">{{ notice }}</div>
     {% endif %}
+
+    <div class="monitor-grid monitor-top">
+      <div class="monitor-tile qr-tile">
+        <p class="hint">Escanea para entrar</p>
+        <img class="qr" src="{{ url_for('room_qr', code=room.code) }}" alt="QR de sala">
+        <p class="pill">Sala {{ room.code }}</p>
+      </div>
+      <div class="monitor-tile category-tile side-tile">
+        <div class="tile-header">
+          <img src="{{ url_for('static', filename=category_data.image) }}" alt="{{ category_name }}">
+          <div>
+            <p class="turn">Categoria</p>
+            <h3 class="tile-title">{{ category_name }}</h3>
+          </div>
+        </div>
+        <p class="hint">Categoria activa para esta ronda.</p>
+      </div>
+    </div>
+
+    <div class="monitor-grid monitor-wide">
+      <div class="monitor-tile word-bank">
+        <p class="turn category-active">{{ category_name }} / Banco visible para todos</p>
+        {% set visible_words = category_data.words[:10] %}
+        <div class="tile-header">
+          <div>
+            <h3 class="tile-title">Banco de palabras</h3>
+            <p class="hint">{{ visible_words|length }} palabras visibles de {{ category_data.words|length }}</p>
+          </div>
+        </div>
+        <div class="word-wall-grid">
+          {% for word in visible_words %}
+            <span>{{ word }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
 
     <div class="phase-steps">
       <span class="step-chip {% if room.phase == 'lobby' %}active{% endif %}">Sala</span>
@@ -69,7 +101,14 @@
     {% else %}
       {% if room.phase == "lobby" %}
         <div class="panel">
-          <p class="hint">Esperando que el monitor inicie la partida.</p>
+          {% if is_host %}
+            <p class="hint">Eres el primer jugador. Inicia cuando todos esten listos.</p>
+            <form method="post" action="{{ url_for('start_game', code=room.code) }}">
+              <button class="primary" type="submit">Iniciar juego</button>
+            </form>
+          {% else %}
+            <p class="hint">Esperando que el primer jugador inicie la partida.</p>
+          {% endif %}
         </div>
       {% elif room.phase == "collect" %}
         <div class="panel highlight">
@@ -87,7 +126,7 @@
           </div>
           <form method="post" action="{{ url_for('submit_word', code=room.code) }}" class="form">
             <label>
-              Tu palabra para el monitor
+              Tu palabra para la ronda
               <input name="word" placeholder="Escribe tu palabra">
             </label>
             <button class="primary" type="submit">Enviar palabra</button>
@@ -96,9 +135,47 @@
             <p class="hint">Tu palabra enviada: {{ submission }}</p>
           {% endif %}
         </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Palabras enviadas</h3>
+            <p class="hint" data-submissions-count>{{ submissions_count }}/{{ room.players|length }}</p>
+          </div>
+          <div class="vote-results" data-submissions-list>
+            {% for person in room.players %}
+              {% if room.submissions.get(person.id) %}
+                <div class="vote-row">
+                  <span>{{ person.name }}</span>
+                  <span class="pill">{{ room.submissions[person.id] }}</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <p class="hint" data-submissions-empty {% if room.submissions %}style="display:none"{% endif %}>
+            Aun no hay palabras enviadas.
+          </p>
+        </div>
       {% elif room.phase == "voting" %}
         <div class="panel highlight">
           <p class="hint">Todos enviaron palabra. Hora de votar.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Palabras enviadas</h3>
+            <p class="hint" data-submissions-count>{{ submissions_count }}/{{ room.players|length }}</p>
+          </div>
+          <div class="vote-results" data-submissions-list>
+            {% for person in room.players %}
+              {% if room.submissions.get(person.id) %}
+                <div class="vote-row">
+                  <span>{{ person.name }}</span>
+                  <span class="pill">{{ room.submissions[person.id] }}</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <p class="hint" data-submissions-empty {% if room.submissions %}style="display:none"{% endif %}>
+            Aun no hay palabras enviadas.
+          </p>
         </div>
         {% if has_voted %}
           <p class="hint">Voto enviado. Espera el resultado.</p>
@@ -117,8 +194,33 @@
         {% endif %}
       {% elif room.phase == "results" %}
         <div class="panel">
-          <p class="hint">Votacion cerrada. Revisa el monitor para el resultado.</p>
+          <p class="hint">Votacion cerrada. Resultado final de la ronda.</p>
+          <div class="impostor-reveal">
+            <p class="turn">Revelacion</p>
+            <h3>El impostor era...</h3>
+            <p class="impostor-name">{{ impostor.name if impostor else 'Sin votos' }}</p>
+          </div>
         </div>
+        {% if leaderboard %}
+          <div class="panel">
+            <h3>Resultados de votos</h3>
+            <div class="vote-results">
+              {% for row in leaderboard %}
+                <div class="vote-row">
+                  <span>{{ row.name }}</span>
+                  <span class="pill">{{ row.votes }} votos</span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        {% if is_host %}
+          <div class="actions">
+            <form method="post" action="{{ url_for('reset_round', code=room.code) }}">
+              <button class="primary" type="submit">Reiniciar partida</button>
+            </form>
+          </div>
+        {% endif %}
       {% endif %}
     {% endif %}
   </section>
@@ -130,6 +232,36 @@
       votesCount: {{ votes_count }},
     };
     const stateUrl = "{{ url_for('room_state', code=room.code) }}";
+    const submissionsList = document.querySelector("[data-submissions-list]");
+    const submissionsCount = document.querySelector("[data-submissions-count]");
+    const submissionsEmpty = document.querySelector("[data-submissions-empty]");
+    const updateSubmissions = (data) => {
+      if (!submissionsList || !submissionsCount) {
+        return;
+      }
+      submissionsCount.textContent = `${data.submissions_count}/${data.players_count}`;
+      submissionsList.innerHTML = "";
+      if (data.submissions.length === 0) {
+        if (submissionsEmpty) {
+          submissionsEmpty.style.display = "block";
+        }
+        return;
+      }
+      if (submissionsEmpty) {
+        submissionsEmpty.style.display = "none";
+      }
+      data.submissions.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "vote-row";
+        const name = document.createElement("span");
+        name.textContent = entry.name;
+        const word = document.createElement("span");
+        word.className = "pill";
+        word.textContent = entry.word;
+        row.append(name, word);
+        submissionsList.appendChild(row);
+      });
+    };
     setInterval(async () => {
       try {
         const response = await fetch(stateUrl, { cache: "no-store" });
@@ -137,13 +269,16 @@
           return;
         }
         const data = await response.json();
-        const changed =
-          data.phase !== roomState.phase ||
-          data.players_count !== roomState.playersCount ||
-          data.submissions_count !== roomState.submissionsCount ||
-          data.votes_count !== roomState.votesCount;
-        if (changed) {
+        if (data.phase !== roomState.phase || data.players_count !== roomState.playersCount) {
           window.location.reload();
+          return;
+        }
+        if (data.submissions_count !== roomState.submissionsCount) {
+          roomState.submissionsCount = data.submissions_count;
+          updateSubmissions(data);
+        }
+        if (data.votes_count !== roomState.votesCount) {
+          roomState.votesCount = data.votes_count;
         }
       } catch (error) {
         // Ignore transient network errors.

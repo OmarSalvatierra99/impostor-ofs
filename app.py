@@ -29,11 +29,6 @@ CATEGORIES = {
             "ventana",
             "caja",
             "bolsa",
-            "llave",
-            "vaso",
-            "cama",
-            "espejo",
-            "lampara",
         ],
     },
     "Trabajo": {
@@ -49,11 +44,6 @@ CATEGORIES = {
             "telefono",
             "pantalla",
             "archivo",
-            "firma",
-            "reporte",
-            "plan",
-            "jefe",
-            "cafe",
         ],
     },
     "Fiesta": {
@@ -69,11 +59,6 @@ CATEGORIES = {
             "baile",
             "foto",
             "juego",
-            "amigos",
-            "fiesta",
-            "confeti",
-            "brindis",
-            "mesa",
         ],
     },
 }
@@ -171,10 +156,11 @@ def create_room():
         "real_word": None,
         "impostor_id": None,
         "notice": None,
+        "host_id": None,
     }
     session.pop("player_id", None)
     session["room_code"] = code
-    return redirect(url_for("monitor", code=code))
+    return redirect(url_for("room", code=code))
 
 
 @app.route("/room/<code>", methods=["GET", "POST"])
@@ -198,23 +184,32 @@ def room(code: str):
             new_id = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(12))
             player = {"id": new_id, "name": name}
             room_state["players"].append(player)
+            if not room_state.get("host_id"):
+                room_state["host_id"] = new_id
             session["player_id"] = new_id
             session["room_code"] = room_state["code"]
         return redirect(url_for("room", code=room_state["code"]))
 
     notice = room_state.pop("notice", None)
     is_impostor = bool(player and room_state.get("impostor_id") == player["id"])
+    is_host = bool(player and room_state.get("host_id") == player["id"])
+    impostor, leaderboard = _tally_votes(room_state) if room_state["phase"] == "results" else (None, [])
     return render_template(
         "room.html",
         room=room_state,
         player=player,
         notice=notice,
+        category_name=room_state["category_name"],
+        category_data=room_state["category_data"],
         submission=room_state["submissions"].get(player_id) if player_id else None,
         has_voted=bool(player_id and room_state["votes"].get(player_id)),
         is_impostor=is_impostor,
+        is_host=is_host,
         secret_word=room_state.get("real_word"),
         submissions_count=len(room_state["submissions"]),
         votes_count=len(room_state["votes"]),
+        impostor=impostor,
+        leaderboard=leaderboard,
     )
 
 @app.route("/room/<code>/submit", methods=["POST"])
@@ -240,16 +235,20 @@ def start_game(code: str):
     room_state = _ensure_room(code)
     if not room_state:
         return redirect(url_for("index"))
+    player_id = session.get("player_id")
+    if not player_id or room_state.get("host_id") != player_id:
+        room_state["notice"] = "Solo el primer jugador puede iniciar la partida."
+        return redirect(url_for("room", code=room_state["code"]))
     if not room_state["players"]:
         room_state["notice"] = "Necesitas al menos un jugador para iniciar."
-        return redirect(url_for("monitor", code=room_state["code"]))
+        return redirect(url_for("room", code=room_state["code"]))
 
     room_state["real_word"] = random.choice(room_state["category_data"]["words"])
     room_state["impostor_id"] = random.choice(room_state["players"])["id"]
     room_state["phase"] = "collect"
     room_state["submissions"] = {}
     room_state["votes"] = {}
-    return redirect(url_for("monitor", code=room_state["code"]))
+    return redirect(url_for("room", code=room_state["code"]))
 
 
 @app.route("/room/<code>/vote", methods=["POST"])
@@ -271,7 +270,7 @@ def vote(code: str):
     return redirect(url_for("room", code=room_state["code"]))
 
 
-@app.route("/room/<code>/monitor", methods=["GET"])
+@app.route("/room/<code>/monitor", methods=["GET", "POST"])
 def monitor(code: str):
     room_state = _ensure_room(code)
     if not room_state:
@@ -279,6 +278,25 @@ def monitor(code: str):
 
     if _is_mobile_user_agent(request.user_agent.string):
         return render_template("monitor_blocked.html", room=room_state)
+
+    player_id = session.get("player_id")
+    player = _find_player(room_state, player_id) if player_id else None
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if len(name) < 2:
+            room_state["notice"] = "Escribe un nombre real, minimo 2 letras."
+            return redirect(url_for("monitor", code=room_state["code"]))
+        if not player and room_state["phase"] != "lobby":
+            room_state["notice"] = "La partida ya empezo. Espera la siguiente ronda."
+            return redirect(url_for("monitor", code=room_state["code"]))
+        if not player:
+            new_id = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(12))
+            player = {"id": new_id, "name": name}
+            room_state["players"].append(player)
+            session["player_id"] = new_id
+            session["room_code"] = room_state["code"]
+        return redirect(url_for("monitor", code=room_state["code"]))
 
     notice = room_state.pop("notice", None)
     impostor, leaderboard = _tally_votes(room_state) if room_state["phase"] == "results" else (None, [])
@@ -292,6 +310,7 @@ def monitor(code: str):
         impostor=impostor,
         leaderboard=leaderboard,
         notice=notice,
+        monitor_player=player,
         main_class="monitor-card",
     )
 
@@ -301,12 +320,19 @@ def room_state(code: str):
     room_state = _ensure_room(code)
     if not room_state:
         return jsonify({"error": "not found"}), 404
+    submissions_list = []
+    for player in room_state["players"]:
+        if player["id"] in room_state["submissions"]:
+            submissions_list.append(
+                {"name": player["name"], "word": room_state["submissions"][player["id"]]}
+            )
     return jsonify(
         {
             "phase": room_state["phase"],
             "players_count": len(room_state["players"]),
             "submissions_count": len(room_state["submissions"]),
             "votes_count": len(room_state["votes"]),
+            "submissions": submissions_list,
         }
     )
 
@@ -326,7 +352,7 @@ def reset_round(code: str):
     room_state["real_word"] = None
     room_state["impostor_id"] = None
     room_state["notice"] = "Nueva ronda lista. Puedes iniciar de nuevo."
-    return redirect(url_for("monitor", code=room_state["code"]))
+    return redirect(url_for("room", code=room_state["code"]))
 
 
 @app.route("/room/<code>/qr", methods=["GET"])
@@ -347,4 +373,4 @@ def room_qr(code: str):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5014, debug=True)
+    app.run(host="0.0.0.0", port=5011, debug=True)

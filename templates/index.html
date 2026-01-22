@@ -13,7 +13,7 @@
       <div>
         <span class="badge">Experiencia institucional</span>
         <h1>Inspector en el OFS</h1>
-        <p class="subtitle">Gestiona sesiones de equipo con monitor, QR y resultados en tiempo real.</p>
+        <p class="subtitle">Gestiona rondas del equipo con resultados en tiempo real.</p>
       </div>
     </div>
   </section>
@@ -26,15 +26,15 @@
     <div class="section-head">
       <div>
         <h2>Organiza la ronda</h2>
-        <p class="hint">Abre el monitor en una pantalla grande y comparte el codigo.</p>
+        <p class="hint">Crea una sala y comparte el codigo con el equipo.</p>
       </div>
     </div>
     <div class="action-grid">
       <div class="action-card">
-        <h3>Crear monitor</h3>
-        <p class="hint">Ideal para laptop o PC. Muestra QR, categoria y resultados.</p>
+        <h3>Crear sala</h3>
+        <p class="hint">El primer jugador podra iniciar la ronda.</p>
         <form method="post" action="{{ url_for('create_room') }}">
-          <button class="primary" type="submit">Abrir monitor</button>
+          <button class="primary" type="submit">Crear sala</button>
         </form>
       </div>
       <div class="action-card">

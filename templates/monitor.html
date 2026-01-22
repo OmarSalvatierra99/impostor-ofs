@@ -37,11 +37,23 @@
 
       <div class="monitor-tile round-tile">
         {% if room.phase == "lobby" %}
-          <h3 class="tile-title">Listos para arrancar</h3>
-          <p class="hint">Cuando esten listos, inicia el juego desde aqui.</p>
-          <form method="post" action="{{ url_for('start_game', code=room.code) }}">
-            <button class="primary" type="submit">Iniciar juego</button>
-          </form>
+          {% if not monitor_player %}
+            <h3 class="tile-title">Tu nombre en la sala</h3>
+            <p class="hint">Necesitas registrarlo para iniciar la partida.</p>
+            <form class="form" method="post" action="{{ url_for('monitor', code=room.code) }}">
+              <label>
+                Nombre
+                <input type="text" name="name" minlength="2" maxlength="24" autocomplete="name" required>
+              </label>
+              <button class="primary" type="submit">Guardar nombre</button>
+            </form>
+          {% else %}
+            <h3 class="tile-title">Listos para arrancar</h3>
+            <p class="hint">Cuando esten listos, inicia el juego desde aqui.</p>
+            <form method="post" action="{{ url_for('start_game', code=room.code) }}">
+              <button class="primary" type="submit">Iniciar juego</button>
+            </form>
+          {% endif %}
         {% else %}
           <h3 class="tile-title round-indicator">Ronda en curso</h3>
           <p class="hint">Mantene el monitor visible para el grupo.</p>
@@ -57,37 +69,39 @@
         {% endif %}
       </div>
 
-      {% if room.phase != "lobby" %}
-        <div class="monitor-tile category-tile side-tile">
-          <div class="tile-header">
-            <img src="{{ url_for('static', filename=category_data.image) }}" alt="{{ category_name }}">
-            <div>
-              <p class="turn">Categoria</p>
-              <h3 class="tile-title">{{ category_name }}</h3>
-            </div>
+      <div class="monitor-tile category-tile side-tile">
+        <div class="tile-header">
+          <img src="{{ url_for('static', filename=category_data.image) }}" alt="{{ category_name }}">
+          <div>
+            <p class="turn">Categoria</p>
+            <h3 class="tile-title">{{ category_name }}</h3>
           </div>
-          <p class="hint">Categoria activa para esta ronda.</p>
         </div>
-      {% endif %}
+        {% if room.phase == "lobby" %}
+          <p class="hint">Categoria lista para la partida.</p>
+        {% else %}
+          <p class="hint">Categoria activa para esta ronda.</p>
+        {% endif %}
+      </div>
     </div>
 
-    {% if room.phase != "lobby" %}
-      <div class="monitor-grid monitor-wide">
-        <div class="monitor-tile word-bank">
-          <p class="turn category-active">{{ category_name }} / Categoria activa para esta ronda</p>
-          <div class="tile-header">
-            <div>
-              <h3 class="tile-title">Banco de palabras</h3>
-            </div>
-          </div>
-          <div class="word-wall-grid">
-            {% for word in category_data.words[:10] %}
-              <span>{{ word }}</span>
-            {% endfor %}
+    <div class="monitor-grid monitor-wide">
+      <div class="monitor-tile word-bank">
+        <p class="turn category-active">{{ category_name }} / Banco visible para todos</p>
+        {% set visible_words = category_data.words[:10] %}
+        <div class="tile-header">
+          <div>
+            <h3 class="tile-title">Banco de palabras</h3>
+            <p class="hint">{{ visible_words|length }} palabras visibles de {{ category_data.words|length }}</p>
           </div>
         </div>
+        <div class="word-wall-grid">
+          {% for word in visible_words %}
+            <span>{{ word }}</span>
+          {% endfor %}
+        </div>
       </div>
-    {% endif %}
+    </div>
 
     {% if room.phase == "collect" %}
       <div class="panel">
